@@ -1,0 +1,65 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "rdatacompy"
+version = "0.1.0"
+description = "Lightning-fast dataframe comparison library built in Rust with Python bindings"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "Juho Jääskeläinen", email = "juho.jaaskelainen95@hotmail.fi" }
+]
+keywords = ["dataframe", "comparison", "arrow", "pyarrow", "rust", "data-quality", "testing", "pandas", "spark"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Rust",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "pyarrow>=14.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/rdatacompy"
+Repository = "https://github.com/yourusername/rdatacompy"
+Issues = "https://github.com/yourusername/rdatacompy/issues"
+Documentation = "https://github.com/yourusername/rdatacompy#readme"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pandas>=1.5.0",
+]
+spark = [
+    "pyspark>=3.0.0",
+]
+pandas = [
+    "pandas>=1.5.0",
+]
+polars = [
+    "polars>=0.19.0",
+]
+all = [
+    "pyspark>=3.0.0",
+    "pandas>=1.5.0",
+    "polars>=0.19.0",
+]
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+python-source = "python"
+module-name = "rdatacompy._rdatacompy"
