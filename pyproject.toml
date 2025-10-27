@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "rdatacompy"
-version = "0.1.1"
+version = "0.1.8"
 description = "Lightning-fast dataframe comparison library built in Rust with Python bindings"
 readme = "README.md"
 requires-python = ">=3.8"

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8] - 2025-10-27
+
+### Added
+- **PySpark 3.5 Compatibility**: Added automatic fallback for Spark DataFrames using `toPandas()` when `toArrow()` is not available
+- Enhanced error messages with troubleshooting tips for Spark configuration
+- New example demonstrating Spark 3.5 compatibility (`examples/spark_35_compatibility.py`)
+
+### Changed
+- Updated documentation to reflect Spark 3.5+ support
+- Improved `_to_arrow_table()` function with better version detection and fallback logic
+
+### Fixed
+- Fixed `TypeError: Compare.__init__() got multiple values for argument 'join_columns'` by correcting constructor signature documentation
+- Resolved compatibility issues with PySpark versions prior to 4.0
+
 ## [0.1.0] - 2025-10-26
 
 ### Added
