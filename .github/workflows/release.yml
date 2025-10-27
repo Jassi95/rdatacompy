@@ -17,15 +17,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - uses: actions/setup-python@v5
+      - name: Setup Python versions
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: |
+            3.8
+            3.9
+            3.10
+            3.11
+            3.12
       
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           command: build
-          args: --release --out dist --find-interpreter
+          args: --release --out dist --interpreter python3.8 python3.9 python3.10 python3.11 python3.12
           manylinux: auto
       
       - name: Upload wheels
