@@ -31,7 +31,7 @@
   - [x] Added classifiers and keywords
   - [x] Added project URLs section
   - [x] Version management setup (0.1.0)
-  
+  - [x] Python 3.11 support
 - [x] **Documentation (Oct 26, 2025)** ✅
   - [x] Comprehensive README.md with:
     - Installation instructions (including optional dependencies)
