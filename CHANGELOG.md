@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9] - 2025-10-27
+
+### Added
+- **Enhanced Report Formatting**: Dynamic column width adjustment for long column names - no more truncation!
+- **Join Keys in Sample Diffs**: Sample differences now display actual join key values instead of sequential row index, making it much easier to identify which records differ
+- New test suite for print improvements (`examples/test_print_improvements.py`)
+
+### Changed
+- Report generation now extracts join key values at the end (more efficient)
+- Column names in "Columns with Unequal Values" table now adjust dynamically to fit content
+- Sample rows section displays join column values first, followed by the differing column values
+- Improved README with example output and detailed interpretation guide
+
+### Technical
+- Refactored `ReportGenerator` to accept dataframe reference for join key lookup
+- Added `format_value()` helper method for consistent value formatting
+- Column width calculation now dynamic based on actual column name lengths
+
 ## [0.1.8] - 2025-10-27
 
 ### Added

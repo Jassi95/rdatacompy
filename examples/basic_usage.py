@@ -42,16 +42,9 @@ def main():
     # Check individual properties
     print("=" * 80)
     print(f"DataFrames match: {compare.matches()}")
-    print(f"Common columns: {compare.intersect_columns}")
-    print(f"Columns only in df1: {compare.df1_unq_columns}")
-    print(f"Columns only in df2: {compare.df2_unq_columns}")
-    
-    if compare.df1_unq_rows is not None:
-        print(f"\nRows only in df1:\n{compare.df1_unq_rows.to_pandas()}")
-    
-    if compare.df2_unq_rows is not None:
-        print(f"\nRows only in df2:\n{compare.df2_unq_rows.to_pandas()}")
-    
+    print(f"Common columns: {compare.intersect_columns()}")
+    print(f"Columns only in df1: {compare.df1_unq_columns()}")
+    print(f"Columns only in df2: {compare.df2_unq_columns()}")
     print("=" * 80)
 
 if __name__ == "__main__":

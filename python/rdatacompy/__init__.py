@@ -11,7 +11,7 @@ from typing import Union, List, Optional
 # Import the Rust implementation
 from ._rdatacompy import Compare as _RustCompare
 
-__version__ = "0.1.8"
+__version__ = "0.1.9"
 
 
 def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:

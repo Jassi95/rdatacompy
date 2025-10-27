@@ -9,11 +9,11 @@ RDataCompy is a high-performance library for comparing dataframes, inspired by C
 ### Why RDataCompy?
 
 - 🚀 **Blazing Fast**: 40-46M cells/second (100-1000x faster than Python-based solutions)
-- � **Memory Efficient**: Zero-copy operations using Apache Arrow columnar format
+- 💾 **Memory Efficient**: Zero-copy operations using Apache Arrow columnar format
 - 🎯 **Flexible**: Configurable tolerance for numeric comparisons
-- � **Comprehensive**: Detailed reports showing exact differences
+- 📊 **Comprehensive**: Detailed reports showing exact differences
 - 🔧 **Multi-Format**: Works with PyArrow, Pandas, PySpark, and Polars DataFrames
-- � **Decimal Support**: Full DECIMAL(p,s) support with cross-precision compatibility
+- 💰 **Decimal Support**: Full DECIMAL(p,s) support with cross-precision compatibility
 
 ## Installation
 
@@ -71,6 +71,84 @@ comp = Compare(
 # Print comprehensive report
 print(comp.report())
 ```
+
+**Example Output:**
+
+```
+DataComPy Comparison
+--------------------
+
+DataFrame Summary
+-----------------
+
+DataFrame          Columns       Rows
+original                 3          4
+updated                  3          4
+
+Column Summary
+--------------
+
+Number of columns in common: 3
+Number of columns in original but not in updated: 0
+Number of columns in updated but not in original: 0
+
+Row Summary
+-----------
+
+Matched on: id
+Any duplicates on match values: No
+Absolute Tolerance: 0.01
+Relative Tolerance: 0
+Number of rows in common: 3
+Number of rows in original but not in updated: 1
+Number of rows in updated but not in original: 1
+
+Number of rows with some compared columns unequal: 1
+Number of rows with all compared columns equal: 2
+
+Column Comparison
+-----------------
+
+Number of columns compared with some values unequal: 2
+Number of columns compared with all values equal: 0
+Total number of values which compare unequal: 2
+
+Columns with Unequal Values or Types
+------------------------------------
+
+Column               original dtype  updated dtype      # Unequal     Max Diff  # Null Diff
+value                float64         float64                    1       0.5000            0
+name                 string          string                     1          N/A            0
+
+Sample Rows with Unequal Values for 'value'
+--------------------------------------------------
+
+id                   value (original)          value (updated)          
+3                    30.000000                 30.500000                
+
+Sample Rows with Unequal Values for 'name'
+--------------------------------------------------
+
+id                   name (original)           name (updated)           
+3                    Charlie                   Chuck                    
+```
+
+**Understanding the Report:**
+
+- **DataFrame Summary**: Shows the dimensions of both dataframes being compared
+- **Column Summary**: Lists columns that exist in both, and columns unique to each dataframe
+- **Row Summary**: 
+  - Shows which columns were used for matching (join keys)
+  - Number of rows that exist in both dataframes (3 in this example)
+  - Rows unique to each dataframe (id=4 only in original, id=5 only in updated)
+  - How many matched rows have differences (1 row has differences, 2 are identical)
+- **Column Comparison**: Summary of which columns have differences across all matched rows
+- **Columns with Unequal Values**: Detailed breakdown per column showing:
+  - Data types in each dataframe
+  - Number of unequal values
+  - Max difference (for numeric columns)
+  - Number of null mismatches
+- **Sample Rows**: Shows actual examples of differences with **join key values** displayed first (not row index), making it easy to identify exactly which records differ
 
 ### Using with Pandas
 

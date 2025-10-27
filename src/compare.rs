@@ -182,6 +182,7 @@ impl DataFrameCompare {
             match_result.df2_unique_indices.len(),
             match_result.has_duplicates,
             column_results,
+            &self.df1, // Pass df1 for join key lookup
         );
         
         Ok(generator.generate())

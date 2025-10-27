@@ -1,4 +1,5 @@
 use crate::column_compare::ColumnComparisonResult;
+use arrow::array::RecordBatch;
 use std::collections::HashSet;
 
 /// Generates human-readable comparison reports
@@ -20,6 +21,7 @@ pub struct ReportGenerator<'a> {
     num_df2_unique: usize,
     has_duplicates: bool,
     column_results: &'a [ColumnComparisonResult],
+    df1: &'a RecordBatch, // Reference to df1 for join key lookup
 }
 
 impl<'a> ReportGenerator<'a> {
@@ -42,6 +44,7 @@ impl<'a> ReportGenerator<'a> {
         num_df2_unique: usize,
         has_duplicates: bool,
         column_results: &'a [ColumnComparisonResult],
+        df1: &'a RecordBatch,
     ) -> Self {
         Self {
             df1_name,
@@ -61,6 +64,7 @@ impl<'a> ReportGenerator<'a> {
             num_df2_unique,
             has_duplicates,
             column_results,
+            df1,
         }
     }
     
@@ -189,27 +193,44 @@ impl<'a> ReportGenerator<'a> {
             return String::new();
         }
         
+        // Calculate dynamic column widths
+        let max_col_name_len = unequal_cols.iter()
+            .map(|c| c.column_name.len())
+            .max()
+            .unwrap_or(20)
+            .max(20); // At least 20 chars
+        
+        let max_type_len = unequal_cols.iter()
+            .flat_map(|c| [c.type1.len(), c.type2.len()])
+            .max()
+            .unwrap_or(15)
+            .max(15); // At least 15 chars
+        
         let mut detail = String::from("Columns with Unequal Values or Types\n");
         detail.push_str("------------------------------------\n\n");
         detail.push_str(&format!(
-            "{:<20} {:<15} {:<15} {:>12} {:>12} {:>12}\n",
+            "{:<width_col$} {:<width_type$} {:<width_type$} {:>12} {:>12} {:>12}\n",
             "Column", 
             &format!("{} dtype", self.df1_name),
             &format!("{} dtype", self.df2_name),
             "# Unequal", 
             "Max Diff", 
-            "# Null Diff"
+            "# Null Diff",
+            width_col = max_col_name_len,
+            width_type = max_type_len
         ));
         
         for col in unequal_cols {
             detail.push_str(&format!(
-                "{:<20} {:<15} {:<15} {:>12} {:>12} {:>12}\n",
+                "{:<width_col$} {:<width_type$} {:<width_type$} {:>12} {:>12} {:>12}\n",
                 col.column_name,
                 col.type1,
                 col.type2,
                 col.num_unequal,
                 col.max_diff.map_or("N/A".to_string(), |d| format!("{:.4}", d)),
-                col.num_null_diff
+                col.num_null_diff,
+                width_col = max_col_name_len,
+                width_type = max_type_len
             ));
         }
         
@@ -228,21 +249,39 @@ impl<'a> ReportGenerator<'a> {
                 "-".repeat(50)
             ));
             
-            samples.push_str(&format!(
-                "{:<10} {:<25} {:<25}\n",
-                "Row Index",
+            // Create header with join columns first
+            let mut header = String::new();
+            for join_col in self.join_columns {
+                header.push_str(&format!("{:<20} ", join_col));
+            }
+            header.push_str(&format!(
+                "{:<25} {:<25}\n",
                 &format!("{} ({})", col.column_name, self.df1_name),
                 &format!("{} ({})", col.column_name, self.df2_name)
             ));
+            samples.push_str(&header);
             
             for (i, diff) in col.sample_diffs.iter().enumerate() {
                 if i >= 10 {
                     samples.push_str(&format!("... ({} more differences)\n", col.sample_diffs.len() - 10));
                     break;
                 }
+                
+                // Extract and print join key values for this row
+                for join_col_name in self.join_columns {
+                    if let Some(join_col_array) = self.df1.column_by_name(join_col_name) {
+                        let join_val = if join_col_array.is_null(diff.row_index) {
+                            "NULL".to_string()
+                        } else {
+                            self.format_value(join_col_array, diff.row_index)
+                        };
+                        samples.push_str(&format!("{:<20} ", join_val));
+                    }
+                }
+                
+                // Then print the differing values
                 samples.push_str(&format!(
-                    "{:<10} {:<25} {:<25}\n",
-                    diff.row_index,
+                    "{:<25} {:<25}\n",
                     diff.value1,
                     diff.value2
                 ));
@@ -252,5 +291,28 @@ impl<'a> ReportGenerator<'a> {
         }
         
         samples
+    }
+    
+    /// Format a value from an array at a specific index
+    fn format_value(&self, array: &arrow::array::ArrayRef, idx: usize) -> String {
+        use arrow::array::*;
+        use arrow::datatypes::DataType;
+        
+        match array.data_type() {
+            DataType::Int8 => array.as_any().downcast_ref::<Int8Array>().unwrap().value(idx).to_string(),
+            DataType::Int16 => array.as_any().downcast_ref::<Int16Array>().unwrap().value(idx).to_string(),
+            DataType::Int32 => array.as_any().downcast_ref::<Int32Array>().unwrap().value(idx).to_string(),
+            DataType::Int64 => array.as_any().downcast_ref::<Int64Array>().unwrap().value(idx).to_string(),
+            DataType::UInt8 => array.as_any().downcast_ref::<UInt8Array>().unwrap().value(idx).to_string(),
+            DataType::UInt16 => array.as_any().downcast_ref::<UInt16Array>().unwrap().value(idx).to_string(),
+            DataType::UInt32 => array.as_any().downcast_ref::<UInt32Array>().unwrap().value(idx).to_string(),
+            DataType::UInt64 => array.as_any().downcast_ref::<UInt64Array>().unwrap().value(idx).to_string(),
+            DataType::Float32 => array.as_any().downcast_ref::<Float32Array>().unwrap().value(idx).to_string(),
+            DataType::Float64 => array.as_any().downcast_ref::<Float64Array>().unwrap().value(idx).to_string(),
+            DataType::Utf8 => array.as_any().downcast_ref::<StringArray>().unwrap().value(idx).to_string(),
+            DataType::LargeUtf8 => array.as_any().downcast_ref::<LargeStringArray>().unwrap().value(idx).to_string(),
+            DataType::Boolean => array.as_any().downcast_ref::<BooleanArray>().unwrap().value(idx).to_string(),
+            _ => format!("{:?}", array),
+        }
     }
 }
