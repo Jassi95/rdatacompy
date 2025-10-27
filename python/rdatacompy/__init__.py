@@ -21,7 +21,7 @@ def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:
     Supports:
     - PyArrow Table
     - PyArrow RecordBatch
-    - PySpark DataFrame
+    - PySpark DataFrame (3.5+ via toPandas, 4.0+ via toArrow)
     - Pandas DataFrame
     - Polars DataFrame
     
@@ -49,8 +49,25 @@ def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:
     try:
         from pyspark.sql import DataFrame as SparkDataFrame
         if isinstance(df, SparkDataFrame):
-            # Convert Spark DataFrame to PyArrow
-            return df.toArrow()
+            # Try to use toArrow() first (Spark 4.0+)
+            if hasattr(df, 'toArrow'):
+                try:
+                    return df.toArrow()
+                except Exception:
+                    # Fall back to toPandas if toArrow fails
+                    pass
+            
+            # Fallback for Spark 3.5 and earlier: convert via Pandas
+            # This requires enabling Arrow-based columnar data transfers
+            try:
+                pandas_df = df.toPandas()
+                return pa.Table.from_pandas(pandas_df)
+            except Exception as e:
+                raise RuntimeError(
+                    f"Failed to convert PySpark DataFrame to PyArrow. "
+                    f"For Spark 3.5, ensure 'spark.sql.execution.arrow.pyspark.enabled' is set to 'true'. "
+                    f"Error: {e}"
+                )
     except ImportError:
         pass  # PySpark not installed
     
@@ -83,7 +100,7 @@ class Compare:
     
     Supports multiple dataframe types:
     - PyArrow Table/RecordBatch
-    - PySpark DataFrame (converted via .toArrow())
+    - PySpark DataFrame (3.5+ via toPandas, 4.0+ via .toArrow())
     - Pandas DataFrame (converted via pa.Table.from_pandas())
     - Polars DataFrame (converted via .to_arrow())
     

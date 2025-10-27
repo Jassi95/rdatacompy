@@ -99,12 +99,16 @@ print(comp.report())
 from pyspark.sql import SparkSession
 from rdatacompy import Compare
 
-spark = SparkSession.builder.getOrCreate()
+# For Spark 3.5, enable Arrow for better performance
+spark = SparkSession.builder \
+    .config("spark.sql.execution.arrow.pyspark.enabled", "true") \
+    .getOrCreate()
 
 df1 = spark.createDataFrame([(1, 100), (2, 200)], ['id', 'value'])
 df2 = spark.createDataFrame([(1, 100), (2, 201)], ['id', 'value'])
 
 # Directly compare Spark DataFrames (auto-converted to Arrow)
+# Works with Spark 3.5+ (via toPandas) and 4.0+ (via toArrow)
 comp = Compare(df1, df2, join_columns=['id'])
 print(comp.report())
 ```

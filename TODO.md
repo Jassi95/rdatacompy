@@ -81,12 +81,13 @@
   - Visualization of differences
 
 ### 4. API Improvements
-- [x] **Multi-DataFrame Support (Oct 26, 2025)** ✅
-  - PySpark DataFrame support via `.toArrow()`
+- [x] **Multi-DataFrame Support (Oct 26-27, 2025)** ✅
+  - PySpark DataFrame support (3.5+ via `toPandas()`, 4.0+ via `.toArrow()`)
   - Pandas DataFrame support via `pa.Table.from_pandas()`
   - Polars DataFrame support via `.to_arrow()`
   - Can mix different types in same comparison
   - All conversions happen before comparison logic
+  - Automatic fallback for Spark 3.5 compatibility
   
 - [ ] **Python API sugar**
   - Convenience methods: `compare.to_json()`, `compare.to_html()`
