@@ -1,4 +1,4 @@
-name: Build Python 3.11 Wheels
+name: Build Python Wheels (3.11 & 3.12)
 
 on:
   push:
@@ -13,27 +13,26 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest]  # Removed macOS
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'  # Just for running cibuildwheel
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build wheels
+      - name: Build wheels for Python 3.11 and 3.12
         uses: pypa/cibuildwheel@v2.16.5
         env:
-          CIBW_BUILD: cp311-*
+          CIBW_BUILD: cp311-* cp312-*  # Build for both 3.11 and 3.12
           CIBW_SKIP: "*-musllinux_*"
           CIBW_ARCHS_LINUX: x86_64
-          CIBW_ARCHS_MACOS: x86_64 arm64
           CIBW_ARCHS_WINDOWS: AMD64
 
       - name: Upload wheels as artifacts
