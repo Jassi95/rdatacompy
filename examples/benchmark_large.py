@@ -116,17 +116,8 @@ def benchmark_large_scale():
     
     print("\n📈 COMPARISON RESULTS:")
     print(f"  DataFrames match:    {compare.matches()}")
-    print(f"  Common columns:      {len(compare.intersect_columns)}")
-    
-    if compare.df1_unq_rows is not None:
-        print(f"  Unique in target:    {format_number(compare.df1_unq_rows.num_rows)} rows")
-    else:
-        print(f"  Unique in target:    0 rows")
-    
-    if compare.df2_unq_rows is not None:
-        print(f"  Unique in comparison: {format_number(compare.df2_unq_rows.num_rows)} rows")
-    else:
-        print(f"  Unique in comparison: 0 rows")
+    common_cols = compare.intersect_columns()
+    print(f"  Common columns:      {len(list(common_cols))}")
     
     # Show abbreviated report
     print("\n" + "=" * 80)

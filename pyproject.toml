@@ -34,10 +34,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/rdatacompy"
-Repository = "https://github.com/yourusername/rdatacompy"
-Issues = "https://github.com/yourusername/rdatacompy/issues"
-Documentation = "https://github.com/yourusername/rdatacompy#readme"
+Homepage = "https://github.com/Jassi95/rdatacompy"
+Repository = "https://github.com/Jassi95/rdatacompy"
+Issues = "https://github.com/Jassi95/rdatacompy/issues"
+Documentation = "https://github.com/Jassi95/rdatacompy#readme"
 
 [project.optional-dependencies]
 dev = [

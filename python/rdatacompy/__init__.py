@@ -191,7 +191,7 @@ class Compare:
         List[str]
             Column names present in both dataframes
         """
-        return self._compare.intersect_columns()
+        return list(self._compare.intersect_columns)
     
     def df1_unq_columns(self) -> List[str]:
         """
@@ -202,7 +202,7 @@ class Compare:
         List[str]
             Column names unique to df1
         """
-        return self._compare.df1_unq_columns()
+        return list(self._compare.df1_unq_columns)
     
     def df2_unq_columns(self) -> List[str]:
         """
@@ -213,7 +213,7 @@ class Compare:
         List[str]
             Column names unique to df2
         """
-        return self._compare.df2_unq_columns()
+        return list(self._compare.df2_unq_columns)
 
 
 __all__ = ["Compare"]
