@@ -11,7 +11,7 @@ from typing import Union, List, Optional
 # Import the Rust implementation
 from ._rdatacompy import Compare as _RustCompare
 
-__version__ = "0.1.9"
+__version__ = "0.1.10"
 
 
 def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:
@@ -57,15 +57,23 @@ def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:
                     # Fall back to toPandas if toArrow fails
                     pass
             
-            # Fallback for Spark 3.5 and earlier: convert via Pandas
-            # This requires enabling Arrow-based columnar data transfers
+            # Fallback for Spark 3.5: convert via Pandas
             try:
                 pandas_df = df.toPandas()
                 return pa.Table.from_pandas(pandas_df)
+            except ModuleNotFoundError as e:
+                if 'distutils' in str(e):
+                    raise RuntimeError(
+                        f"PySpark 3.5 requires 'distutils' which is not available in Python 3.12+. "
+                        f"Please install setuptools to provide distutils compatibility:\n"
+                        f"  pip install setuptools\n"
+                        f"Or upgrade to PySpark 4.0+ which has native Arrow support."
+                    )
+                raise
             except Exception as e:
                 raise RuntimeError(
                     f"Failed to convert PySpark DataFrame to PyArrow. "
-                    f"For Spark 3.5, ensure 'spark.sql.execution.arrow.pyspark.enabled' is set to 'true'. "
+                    f"Ensure 'spark.sql.execution.arrow.pyspark.enabled' is set to 'true'. "
                     f"Error: {e}"
                 )
     except ImportError:

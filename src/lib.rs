@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::types::{PyList, PyString};
+use pyo3::types::PyList;
 use arrow::pyarrow::PyArrowType;
 use arrow::record_batch::RecordBatch;
 
@@ -10,6 +10,7 @@ mod row_matcher;
 mod column_compare;
 mod report;
 mod compare;
+mod date_utils;
 
 use compare::DataFrameCompare;
 

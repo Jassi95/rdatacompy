@@ -4,15 +4,17 @@ Test rdatacompy with realistic scenario
 
 import pyarrow.parquet as pq
 import rdatacompy
+from pathlib import Path
 
 print("=" * 80)
 print("RDataCompy Realistic Scenario Test")
 print("=" * 80)
 
-# Load the datasets
+# Load the datasets from extras/test_data
 print("\nLoading datasets...")
-target_df = pq.read_table('target_df.parquet')
-comparison_df = pq.read_table('comparison_df.parquet')
+test_data_dir = Path(__file__).parent.parent / 'extras' / 'test_data'
+target_df = pq.read_table(test_data_dir / 'target_df.parquet')
+comparison_df = pq.read_table(test_data_dir / 'comparison_df.parquet')
 
 print(f"Target DataFrame:     {target_df.num_rows} rows × {target_df.num_columns} columns")
 print(f"Comparison DataFrame: {comparison_df.num_rows} rows × {comparison_df.num_columns} columns")

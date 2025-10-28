@@ -60,3 +60,11 @@ pub fn is_numeric_type(data_type: &DataType) -> bool {
         DataType::Decimal128(_, _) | DataType::Decimal256(_, _)
     )
 }
+
+/// Check if a data type is temporal (date/timestamp)
+pub fn is_temporal_type(data_type: &DataType) -> bool {
+    matches!(
+        data_type,
+        DataType::Date32 | DataType::Date64 | DataType::Timestamp(_, _)
+    )
+}

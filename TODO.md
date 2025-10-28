@@ -1,5 +1,17 @@
 # RDataCompy TODO List
 
+## Bugs
+
+**✅ FIXED (Oct 28, 2025):**
+1. ~~Input spark dataframe with dates print visual bug~~ - Fixed date/timestamp formatting in v0.1.10
+   - Date32 now shows: `2024-07-09 (day 19898)` instead of `PrimitiveArray [2024-06-24,]`
+   - Date64 supported: `Date64(1705269600000 ms, ~day 19736)`
+   - Timestamps display cleanly: `2024-01-28 10:30:45`
+
+2. ~~Spark datetime and timestamp that contains timezone~~ - Fixed timezone support in v0.1.10
+   - Timestamps with timezone now display properly: `2024-01-28 10:30:45 UTC`
+   - All TimeUnit variants supported (Second, Millisecond, Microsecond, Nanosecond)
+
 ## High Priority
 
 ### 1. Test Additional Data Types
@@ -23,6 +35,11 @@
   - Struct types (nested records)
   - Dictionary-encoded columns
   - Duration types
+
+### 2. Prints
+- Better looking prints for wide column names on Columns with unequal values or types
+- Key columns to start of print(now shows index...)
+
 
 ### 2. Publishing the Library
 
@@ -52,8 +69,8 @@
   
 - [ ] **CI/CD Setup**
   - [ ] GitHub Actions for automated testing
-  - [ ] Automated wheel building for multiple platforms (Linux, macOS, Windows)
-  - [ ] Automated PyPI publishing on release tags
+  - [x] Automated wheel building for multiple platforms (Linux, macOS, Windows)
+  - [x] Automated PyPI publishing on release tags
   
 - [x] **Legal/Licensing (Oct 26, 2025)** ✅
   - [x] Added LICENSE file (Apache-2.0)

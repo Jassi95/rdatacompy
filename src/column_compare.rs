@@ -2,7 +2,8 @@ use arrow::array::{Array, ArrayRef, AsArray};
 use arrow::datatypes::*;
 use crate::error::Result;
 use crate::tolerance::ToleranceChecker;
-use crate::types::{arrow_type_to_string, is_numeric_type};
+use crate::types::{arrow_type_to_string, is_numeric_type, is_temporal_type};
+use crate::date_utils::days_to_date;
 
 /// Sample of a difference between two values
 #[derive(Debug, Clone)]
@@ -56,6 +57,7 @@ impl ColumnComparator {
         let mut sample_diffs = Vec::new();
         
         let is_numeric = is_numeric_type(col1.data_type()) && is_numeric_type(col2.data_type());
+        let is_temporal = is_temporal_type(col1.data_type()) && is_temporal_type(col2.data_type());
         
         for &(idx1, idx2) in matched_indices {
             let null1 = col1.is_null(idx1);
@@ -84,6 +86,8 @@ impl ColumnComparator {
             // Compare non-null values
             let equal = if is_numeric {
                 self.compare_numeric_values(col1, idx1, col2, idx2, &mut max_diff)?
+            } else if is_temporal {
+                self.compare_temporal_values(col1, idx1, col2, idx2, &mut max_diff)?
             } else {
                 self.compare_non_numeric_values(col1, idx1, col2, idx2)?
             };
@@ -144,6 +148,66 @@ impl ColumnComparator {
         let val1 = self.value_to_string(col1, idx1);
         let val2 = self.value_to_string(col2, idx2);
         Ok(val1 == val2)
+    }
+    
+    /// Compare temporal values (dates/timestamps) and track max difference
+    fn compare_temporal_values(
+        &self,
+        col1: &ArrayRef,
+        idx1: usize,
+        col2: &ArrayRef,
+        idx2: usize,
+        max_diff: &mut Option<f64>,
+    ) -> Result<bool> {
+        // Extract temporal values as comparable units
+        let val1 = self.extract_temporal_value(col1, idx1)?;
+        let val2 = self.extract_temporal_value(col2, idx2)?;
+        
+        // Calculate difference (absolute value in the appropriate unit)
+        let diff = (val1 - val2).abs();
+        
+        // Update max difference
+        *max_diff = Some(max_diff.map_or(diff, |current| current.max(diff)));
+        
+        // For exact comparison (no tolerance on temporal types)
+        Ok(val1 == val2)
+    }
+    
+    /// Extract temporal value as a comparable number
+    /// - Date32: days since epoch
+    /// - Date64: days since epoch (converted from milliseconds)
+    /// - Timestamp: seconds since epoch (converted from appropriate unit)
+    fn extract_temporal_value(&self, array: &ArrayRef, idx: usize) -> Result<f64> {
+        let value = match array.data_type() {
+            DataType::Date32 => {
+                // Days since epoch
+                array.as_primitive::<Date32Type>().value(idx) as f64
+            },
+            DataType::Date64 => {
+                // Milliseconds since epoch -> convert to days for consistency
+                let millis = array.as_primitive::<Date64Type>().value(idx);
+                (millis as f64) / (1000.0 * 60.0 * 60.0 * 24.0)
+            },
+            DataType::Timestamp(unit, _) => {
+                // Get timestamp value and convert to seconds
+                let timestamp_value = match unit {
+                    TimeUnit::Second => array.as_primitive::<TimestampSecondType>().value(idx),
+                    TimeUnit::Millisecond => array.as_primitive::<TimestampMillisecondType>().value(idx),
+                    TimeUnit::Microsecond => array.as_primitive::<TimestampMicrosecondType>().value(idx),
+                    TimeUnit::Nanosecond => array.as_primitive::<TimestampNanosecondType>().value(idx),
+                };
+                
+                // Convert to seconds
+                match unit {
+                    TimeUnit::Second => timestamp_value as f64,
+                    TimeUnit::Millisecond => timestamp_value as f64 / 1_000.0,
+                    TimeUnit::Microsecond => timestamp_value as f64 / 1_000_000.0,
+                    TimeUnit::Nanosecond => timestamp_value as f64 / 1_000_000_000.0,
+                }
+            },
+            _ => 0.0,
+        };
+        Ok(value)
     }
     
     /// Extract a numeric value from an array
@@ -208,6 +272,53 @@ impl ColumnComparator {
             DataType::Utf8 => array.as_string::<i32>().value(idx).to_string(),
             DataType::LargeUtf8 => array.as_string::<i64>().value(idx).to_string(),
             DataType::Boolean => array.as_boolean().value(idx).to_string(),
+            DataType::Date32 => {
+                // Date32 is days since Unix epoch (1970-01-01)
+                let days = array.as_primitive::<Date32Type>().value(idx);
+                // Convert days since epoch to YYYY-MM-DD
+                let (year, month, day) = days_to_date(days);
+                format!("{:04}-{:02}-{:02}", year, month, day)
+            },
+            DataType::Date64 => {
+                // Date64 is milliseconds since Unix epoch
+                let millis = array.as_primitive::<Date64Type>().value(idx);
+                let days = (millis / (1000 * 60 * 60 * 24)) as i32;
+                let (year, month, day) = days_to_date(days);
+                format!("{:04}-{:02}-{:02}", year, month, day)
+            },
+            DataType::Timestamp(unit, tz) => {
+                // Get the timestamp value based on the actual storage type
+                let timestamp_value = match unit {
+                    TimeUnit::Second => array.as_primitive::<TimestampSecondType>().value(idx),
+                    TimeUnit::Millisecond => array.as_primitive::<TimestampMillisecondType>().value(idx),
+                    TimeUnit::Microsecond => array.as_primitive::<TimestampMicrosecondType>().value(idx),
+                    TimeUnit::Nanosecond => array.as_primitive::<TimestampNanosecondType>().value(idx),
+                };
+                
+                // Convert to seconds for display
+                let seconds = match unit {
+                    TimeUnit::Second => timestamp_value,
+                    TimeUnit::Millisecond => timestamp_value / 1_000,
+                    TimeUnit::Microsecond => timestamp_value / 1_000_000,
+                    TimeUnit::Nanosecond => timestamp_value / 1_000_000_000,
+                };
+                
+                // Use proper date calculation
+                let days_since_epoch = (seconds / 86400) as i32;
+                let (year, month, day) = days_to_date(days_since_epoch);
+                let time_of_day = seconds % 86400;
+                let hours = time_of_day / 3600;
+                let minutes = (time_of_day % 3600) / 60;
+                let secs = time_of_day % 60;
+                
+                if let Some(tz_str) = tz {
+                    format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02} {}", 
+                        year, month, day, hours, minutes, secs, tz_str)
+                } else {
+                    format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+                        year, month, day, hours, minutes, secs)
+                }
+            },
             _ => format!("{:?}", array.slice(idx, 1)),
         }
     }

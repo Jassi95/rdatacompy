@@ -1,6 +1,7 @@
 use crate::column_compare::ColumnComparisonResult;
 use arrow::array::RecordBatch;
 use std::collections::HashSet;
+use crate::date_utils::days_to_date;
 
 /// Generates human-readable comparison reports
 pub struct ReportGenerator<'a> {
@@ -82,6 +83,34 @@ impl<'a> ReportGenerator<'a> {
         report.push_str(&self.generate_sample_diffs());
         
         report
+    }
+    
+    /// Format temporal difference in human-readable format
+    fn format_temporal_diff(&self, diff: f64, dtype: &str) -> String {
+        // Check if this is a date type (Date32 or Date64)
+        if dtype.starts_with("date") {
+            // Diff is in days
+            if diff < 1.0 {
+                format!("{:.2} days", diff)
+            } else {
+                format!("{:.1} days", diff)
+            }
+        }
+        // Check if this is a timestamp
+        else if dtype.starts_with("timestamp") {
+            // Diff is in seconds
+            if diff < 60.0 {
+                format!("{:.1} secs", diff)
+            } else if diff < 3600.0 {
+                format!("{:.1} mins", diff / 60.0)
+            } else if diff < 86400.0 {
+                format!("{:.1} hours", diff / 3600.0)
+            } else {
+                format!("{:.1} days", diff / 86400.0)
+            }
+        } else {
+            format!("{:.4}", diff)
+        }
     }
     
     fn generate_dataframe_summary(&self) -> String {
@@ -221,13 +250,22 @@ impl<'a> ReportGenerator<'a> {
         ));
         
         for col in unequal_cols {
+            let max_diff_str = col.max_diff.map_or("N/A".to_string(), |d| {
+                // Check if it's a temporal type and format accordingly
+                if col.type1.starts_with("date") || col.type1.starts_with("timestamp") {
+                    self.format_temporal_diff(d, &col.type1)
+                } else {
+                    format!("{:.4}", d)
+                }
+            });
+            
             detail.push_str(&format!(
                 "{:<width_col$} {:<width_type$} {:<width_type$} {:>12} {:>12} {:>12}\n",
                 col.column_name,
                 col.type1,
                 col.type2,
                 col.num_unequal,
-                col.max_diff.map_or("N/A".to_string(), |d| format!("{:.4}", d)),
+                max_diff_str,
                 col.num_null_diff,
                 width_col = max_col_name_len,
                 width_type = max_type_len
@@ -296,7 +334,11 @@ impl<'a> ReportGenerator<'a> {
     /// Format a value from an array at a specific index
     fn format_value(&self, array: &arrow::array::ArrayRef, idx: usize) -> String {
         use arrow::array::*;
-        use arrow::datatypes::DataType;
+        use arrow::datatypes::{DataType, TimeUnit};
+        
+        if array.is_null(idx) {
+            return "NULL".to_string();
+        }
         
         match array.data_type() {
             DataType::Int8 => array.as_any().downcast_ref::<Int8Array>().unwrap().value(idx).to_string(),
@@ -307,12 +349,53 @@ impl<'a> ReportGenerator<'a> {
             DataType::UInt16 => array.as_any().downcast_ref::<UInt16Array>().unwrap().value(idx).to_string(),
             DataType::UInt32 => array.as_any().downcast_ref::<UInt32Array>().unwrap().value(idx).to_string(),
             DataType::UInt64 => array.as_any().downcast_ref::<UInt64Array>().unwrap().value(idx).to_string(),
-            DataType::Float32 => array.as_any().downcast_ref::<Float32Array>().unwrap().value(idx).to_string(),
-            DataType::Float64 => array.as_any().downcast_ref::<Float64Array>().unwrap().value(idx).to_string(),
+            DataType::Float32 => format!("{:.6}", array.as_any().downcast_ref::<Float32Array>().unwrap().value(idx)),
+            DataType::Float64 => format!("{:.6}", array.as_any().downcast_ref::<Float64Array>().unwrap().value(idx)),
             DataType::Utf8 => array.as_any().downcast_ref::<StringArray>().unwrap().value(idx).to_string(),
             DataType::LargeUtf8 => array.as_any().downcast_ref::<LargeStringArray>().unwrap().value(idx).to_string(),
             DataType::Boolean => array.as_any().downcast_ref::<BooleanArray>().unwrap().value(idx).to_string(),
-            _ => format!("{:?}", array),
+            DataType::Date32 => {
+                let days = array.as_any().downcast_ref::<Date32Array>().unwrap().value(idx);
+                let (year, month, day) = days_to_date(days);
+                format!("{:04}-{:02}-{:02}", year, month, day)
+            },
+            DataType::Date64 => {
+                let millis = array.as_any().downcast_ref::<Date64Array>().unwrap().value(idx);
+                let days = (millis / (1000 * 60 * 60 * 24)) as i32;
+                let (year, month, day) = days_to_date(days);
+                format!("{:04}-{:02}-{:02}", year, month, day)
+            },
+            DataType::Timestamp(unit, tz) => {
+                let timestamp_value = match unit {
+                    TimeUnit::Second => array.as_any().downcast_ref::<TimestampSecondArray>().unwrap().value(idx),
+                    TimeUnit::Millisecond => array.as_any().downcast_ref::<TimestampMillisecondArray>().unwrap().value(idx),
+                    TimeUnit::Microsecond => array.as_any().downcast_ref::<TimestampMicrosecondArray>().unwrap().value(idx),
+                    TimeUnit::Nanosecond => array.as_any().downcast_ref::<TimestampNanosecondArray>().unwrap().value(idx),
+                };
+                
+                let seconds = match unit {
+                    TimeUnit::Second => timestamp_value,
+                    TimeUnit::Millisecond => timestamp_value / 1_000,
+                    TimeUnit::Microsecond => timestamp_value / 1_000_000,
+                    TimeUnit::Nanosecond => timestamp_value / 1_000_000_000,
+                };
+                
+                let days_since_epoch = (seconds / 86400) as i32;
+                let (year, month, day) = days_to_date(days_since_epoch);
+                let time_of_day = seconds % 86400;
+                let hours = time_of_day / 3600;
+                let minutes = (time_of_day % 3600) / 60;
+                let secs = time_of_day % 60;
+                
+                if let Some(tz_str) = tz {
+                    format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02} {}", 
+                        year, month, day, hours, minutes, secs, tz_str)
+                } else {
+                    format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+                        year, month, day, hours, minutes, secs)
+                }
+            },
+            _ => format!("{:?}", array.slice(idx, 1)),
         }
     }
 }

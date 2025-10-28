@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.10] - 2025-10-28
+
+### Fixed
+- **Date/Timestamp Formatting**: Fixed visual bug where dates displayed as `PrimitiveArray [2024-06-24,]` instead of readable format
+  - Date32 now shows clean format: `2024-07-09 (day 19898)`
+  - Date64 properly formatted: `Date64(1705269600000 ms, ~day 19736)`
+  - Timestamps display clearly: `2024-01-28 10:30:45`
+  - Timestamps with timezone show timezone string: `2024-01-28 10:30:45 UTC`
+- **Spark 3.5 Compatibility**: Fixed date and timestamp column handling when using PySpark DataFrames
+  - All TimeUnit variants supported (Second, Millisecond, Microsecond, Nanosecond)
+  - Timezone information preserved and displayed
+
+### Technical
+- Updated `value_to_string()` in `src/column_compare.rs` to handle Date32, Date64, and Timestamp types explicitly
+- Updated `format_value()` in `src/report.rs` for consistent date/timestamp formatting across reports
+- Using Arrow native types for date conversion (no external dependencies)
+
 ## [0.1.9] - 2025-10-27
 
 ### Added
