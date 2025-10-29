@@ -13,7 +13,8 @@
    - All TimeUnit variants supported (Second, Millisecond, Microsecond, Nanosecond)
 
 ## High Priority
-
+### 0. Enhancements
+- [ ] Order column diffs by biggest diff. Also include if there are null diffs on the sample print. 
 ### 1. Test Additional Data Types
 - [ ] **Date/DateTime columns**
   - Test Date32, Date64 types
