@@ -11,6 +11,7 @@ pub struct SampleDiff {
     pub row_index: usize,
     pub value1: String,
     pub value2: String,
+    pub diff: Option<f64>,  // Numeric difference for sorting (None for non-numeric types)
 }
 
 /// Result of comparing a single column
@@ -73,6 +74,7 @@ impl ColumnComparator {
                         row_index: idx1,
                         value1: if null1 { "NULL".to_string() } else { self.value_to_string(col1, idx1) },
                         value2: if null2 { "NULL".to_string() } else { self.value_to_string(col2, idx2) },
+                        diff: None,  // NULL differences don't have numeric diff
                     });
                 }
                 continue;
@@ -96,10 +98,22 @@ impl ColumnComparator {
                 num_unequal += 1;
                 
                 if sample_diffs.len() < self.max_samples {
+                    // Calculate diff for sorting (if numeric/temporal)
+                    let diff_value = if is_numeric {
+                        Some((self.extract_numeric_value(col1, idx1).unwrap_or(0.0) - 
+                              self.extract_numeric_value(col2, idx2).unwrap_or(0.0)).abs())
+                    } else if is_temporal {
+                        Some((self.extract_temporal_value(col1, idx1).unwrap_or(0.0) - 
+                              self.extract_temporal_value(col2, idx2).unwrap_or(0.0)).abs())
+                    } else {
+                        None
+                    };
+                    
                     sample_diffs.push(SampleDiff {
                         row_index: idx1,
                         value1: self.value_to_string(col1, idx1),
                         value2: self.value_to_string(col2, idx2),
+                        diff: diff_value,
                     });
                 }
             }
