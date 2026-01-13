@@ -174,23 +174,38 @@ impl<'a> ReportGenerator<'a> {
         ));
         
         // Calculate rows with differences
-        // A row has differences if ANY column has unequal values for that row
-        // We need to track unique row indices that have at least one difference
+        // Track:
+        // 1. Rows where at least one column differs (rows_with_some_diffs)
+        // 2. Rows where all compared columns differ (rows_with_all_diffs)
         let mut rows_with_diffs = std::collections::HashSet::new();
+        let mut row_diff_counts = std::collections::HashMap::new();
+        
+        let num_compared_cols = self.column_results.len();
+        
         for col_result in self.column_results {
             if !col_result.all_equal {
                 // This column has differences, so add all rows from sample_diffs
                 for diff in &col_result.sample_diffs {
                     rows_with_diffs.insert(diff.row_index);
+                    *row_diff_counts.entry(diff.row_index).or_insert(0) += 1;
                 }
             }
         }
         
+        // Count rows where ALL compared columns are unequal
+        let num_rows_all_cols_unequal = row_diff_counts.values()
+            .filter(|&&count| count == num_compared_cols)
+            .count();
+        
         let num_rows_with_diffs = rows_with_diffs.len();
         let num_rows_all_equal = self.num_common_rows.saturating_sub(num_rows_with_diffs);
         
-        summary.push_str(&format!("\nNumber of rows with some compared columns unequal: {}\n", num_rows_with_diffs));
-        summary.push_str(&format!("Number of rows with all compared columns equal: {}\n\n", num_rows_all_equal));
+        summary.push_str(&format!("\nNumber of rows with all compared columns equal: {}\n", num_rows_all_equal));
+        summary.push_str(&format!("Number of rows with some compared columns unequal: {}\n", num_rows_with_diffs));
+        if num_rows_all_cols_unequal > 0 {
+            summary.push_str(&format!("Number of rows with all compared columns unequal: {}\n", num_rows_all_cols_unequal));
+        }
+        summary.push_str("\n");
         
         summary
     }
@@ -199,18 +214,30 @@ impl<'a> ReportGenerator<'a> {
         let num_equal = self.column_results.iter().filter(|r| r.all_equal).count();
         let num_unequal = self.column_results.len() - num_equal;
         
+        // Count columns where ALL compared values are unequal
+        let num_all_values_unequal = self.column_results.iter()
+            .filter(|r| !r.all_equal && r.num_unequal == self.num_common_rows)
+            .count();
+        
         let total_unequal_values: usize = self.column_results.iter()
             .map(|r| r.num_unequal)
             .sum();
         
-        format!(
+        let mut result = format!(
             "Column Comparison\n\
              -----------------\n\n\
-             Number of columns compared with some values unequal: {}\n\
              Number of columns compared with all values equal: {}\n\
-             Total number of values which compare unequal: {}\n\n",
-            num_unequal, num_equal, total_unequal_values
-        )
+             Number of columns compared with some values unequal: {}\n",
+            num_equal, num_unequal
+        );
+        
+        if num_all_values_unequal > 0 {
+            result.push_str(&format!("Number of columns compared with all values unequal: {}\n", num_all_values_unequal));
+        }
+        
+        result.push_str(&format!("Total number of values which compare unequal: {}\n\n", total_unequal_values));
+        
+        result
     }
     
     fn generate_unequal_columns_detail(&self) -> String {
@@ -222,14 +249,18 @@ impl<'a> ReportGenerator<'a> {
             return String::new();
         }
         
+        // Sort columns alphabetically (case-insensitive) for easy scanning
+        let mut sorted_cols = unequal_cols.clone();
+        sorted_cols.sort_by(|a, b| a.column_name.to_lowercase().cmp(&b.column_name.to_lowercase()));
+        
         // Calculate dynamic column widths
-        let max_col_name_len = unequal_cols.iter()
+        let max_col_name_len = sorted_cols.iter()
             .map(|c| c.column_name.len())
             .max()
             .unwrap_or(20)
             .max(20); // At least 20 chars
         
-        let max_type_len = unequal_cols.iter()
+        let max_type_len = sorted_cols.iter()
             .flat_map(|c| [c.type1.len(), c.type2.len()])
             .max()
             .unwrap_or(15)
@@ -249,7 +280,7 @@ impl<'a> ReportGenerator<'a> {
             width_type = max_type_len
         ));
         
-        for col in unequal_cols {
+        for col in &sorted_cols {
             let max_diff_str = col.max_diff.map_or("N/A".to_string(), |d| {
                 // Check if it's a temporal type and format accordingly
                 if col.type1.starts_with("date") || col.type1.starts_with("timestamp") {
@@ -279,7 +310,25 @@ impl<'a> ReportGenerator<'a> {
     fn generate_sample_diffs(&self) -> String {
         let mut samples = String::new();
         
-        for col in self.column_results.iter().filter(|r| !r.sample_diffs.is_empty()) {
+        // Sort columns by max_diff (descending) - show most interesting differences first
+        // For columns without max_diff (non-numeric), sort them to the end alphabetically
+        let mut cols_with_diffs: Vec<_> = self.column_results.iter()
+            .filter(|r| !r.sample_diffs.is_empty())
+            .collect();
+        
+        cols_with_diffs.sort_by(|a, b| {
+            match (a.max_diff, b.max_diff) {
+                (Some(diff_a), Some(diff_b)) => {
+                    // Both have max_diff - sort by value (descending)
+                    diff_b.partial_cmp(&diff_a).unwrap_or(std::cmp::Ordering::Equal)
+                },
+                (Some(_), None) => std::cmp::Ordering::Less,  // Numeric columns first
+                (None, Some(_)) => std::cmp::Ordering::Greater, // Non-numeric later
+                (None, None) => a.column_name.cmp(&b.column_name), // Both non-numeric, sort alphabetically
+            }
+        });
+        
+        for col in cols_with_diffs {
             samples.push_str(&format!(
                 "Sample Rows with Unequal Values for '{}'\n\
                  {}\n\n",
@@ -299,7 +348,21 @@ impl<'a> ReportGenerator<'a> {
             ));
             samples.push_str(&header);
             
-            for (i, diff) in col.sample_diffs.iter().enumerate() {
+            // Sort sample diffs by absolute difference (largest first)
+            let mut sorted_diffs = col.sample_diffs.clone();
+            sorted_diffs.sort_by(|a, b| {
+                match (a.diff, b.diff) {
+                    (Some(diff_a), Some(diff_b)) => {
+                        // Sort by absolute difference descending
+                        diff_b.partial_cmp(&diff_a).unwrap_or(std::cmp::Ordering::Equal)
+                    },
+                    (Some(_), None) => std::cmp::Ordering::Less,  // Numeric diffs first
+                    (None, Some(_)) => std::cmp::Ordering::Greater,
+                    (None, None) => std::cmp::Ordering::Equal,  // Keep original order for non-numeric
+                }
+            });
+            
+            for (i, diff) in sorted_diffs.iter().enumerate() {
                 if i >= 10 {
                     samples.push_str(&format!("... ({} more differences)\n", col.sample_diffs.len() - 10));
                     break;
