@@ -14,6 +14,21 @@ from ._rdatacompy import Compare as _RustCompare
 __version__ = "0.1.10"
 
 
+def _has_missing_distutils(exc: BaseException) -> bool:
+    seen = set()
+    current = exc
+
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, ModuleNotFoundError):
+            missing_module = getattr(current, "name", None)
+            if missing_module == "distutils" or "No module named 'distutils'" in str(current):
+                return True
+        current = current.__cause__ or current.__context__
+
+    return False
+
+
 def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:
     """
     Convert various dataframe types to PyArrow Table.
@@ -65,8 +80,7 @@ def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:
             pandas_df = df.toPandas()
             return pa.Table.from_pandas(pandas_df)
         except ModuleNotFoundError as e:
-            missing_module = getattr(e, "name", None)
-            if missing_module == "distutils" or "No module named 'distutils'" in str(e):
+            if _has_missing_distutils(e):
                 raise RuntimeError(
                     f"PySpark fallback conversion hit a missing 'distutils' dependency on this Python runtime. "
                     f"Please install setuptools to provide distutils compatibility:\n"
@@ -75,6 +89,13 @@ def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:
                 )
             raise
         except Exception as e:
+            if _has_missing_distutils(e):
+                raise RuntimeError(
+                    f"PySpark fallback conversion hit a missing 'distutils' dependency on this Python runtime. "
+                    f"Please install setuptools to provide distutils compatibility:\n"
+                    f"  pip install setuptools\n"
+                    f"Or upgrade to PySpark 4.0+ which has native Arrow support."
+                ) from e
             raise RuntimeError(
                 f"Failed to convert PySpark DataFrame to PyArrow via the toPandas() fallback. "
                 f"Ensure pandas and pyarrow are installed. "
