@@ -90,3 +90,18 @@ def test_to_arrow_table_propagates_other_module_not_found_errors(monkeypatch):
 
     with pytest.raises(ModuleNotFoundError, match="not_distutils"):
         _to_arrow_table(FakeSparkDataFrame())
+
+
+def test_to_arrow_table_reports_topandas_fallback_failures(monkeypatch):
+    class FakeSparkDataFrame:
+        def toPandas(self):
+            raise ValueError("boom")
+
+    fake_sql_module = type("FakeSQLModule", (), {"DataFrame": FakeSparkDataFrame})
+    fake_pyspark_module = type("FakePySparkModule", (), {"sql": fake_sql_module})
+
+    monkeypatch.setitem(sys.modules, "pyspark", fake_pyspark_module)
+    monkeypatch.setitem(sys.modules, "pyspark.sql", fake_sql_module)
+
+    with pytest.raises(RuntimeError, match="toPandas\\(\\) fallback"):
+        _to_arrow_table(FakeSparkDataFrame())
