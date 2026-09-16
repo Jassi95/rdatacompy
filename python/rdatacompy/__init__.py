@@ -86,7 +86,7 @@ def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:
                     f"Please install setuptools to provide distutils compatibility:\n"
                     f"  pip install setuptools\n"
                     f"Or upgrade to PySpark 4.0+ which has native Arrow support."
-                )
+                ) from e
             raise
         except Exception as e:
             if _has_missing_distutils(e):
