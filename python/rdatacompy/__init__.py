@@ -100,7 +100,7 @@ def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:
                 f"Failed to convert PySpark DataFrame to PyArrow via the toPandas() fallback. "
                 f"Ensure pandas and pyarrow are installed. "
                 f"Error: {e}"
-            )
+            ) from e
     
     # Pandas DataFrame
     try:
