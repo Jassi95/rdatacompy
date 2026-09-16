@@ -23,14 +23,24 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       
-      - name: Build wheels
+      - name: Build wheels (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: PyO3/maturin-action@v1
+        env:
+          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
+        with:
+          command: build
+          args: --release --out dist --interpreter python${{ matrix.python-version }}
+          manylinux: auto
+
+      - name: Build wheels (Windows)
+        if: matrix.os == 'windows-latest'
         uses: PyO3/maturin-action@v1
         env:
           PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
         with:
           command: build
           args: --release --out dist --interpreter python
-          manylinux: auto
       
       - name: Upload wheels
         uses: actions/upload-artifact@v4
