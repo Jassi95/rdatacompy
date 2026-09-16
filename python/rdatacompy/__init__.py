@@ -48,36 +48,38 @@ def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:
     # PySpark DataFrame
     try:
         from pyspark.sql import DataFrame as SparkDataFrame
-        if isinstance(df, SparkDataFrame):
-            # Try to use toArrow() first (Spark 4.0+)
-            if hasattr(df, 'toArrow'):
-                try:
-                    return df.toArrow()
-                except Exception:
-                    # Fall back to toPandas if toArrow fails
-                    pass
-            
-            # Fallback for Spark <4.0: convert via Pandas
-            try:
-                pandas_df = df.toPandas()
-                return pa.Table.from_pandas(pandas_df)
-            except ModuleNotFoundError as e:
-                if 'distutils' in str(e):
-                    raise RuntimeError(
-                        f"PySpark fallback conversion hit a missing 'distutils' dependency on Python 3.12+. "
-                        f"Please install setuptools to provide distutils compatibility:\n"
-                        f"  pip install setuptools\n"
-                        f"Or upgrade to PySpark 4.0+ which has native Arrow support."
-                    )
-                raise
-            except Exception as e:
-                raise RuntimeError(
-                    f"Failed to convert PySpark DataFrame to PyArrow. "
-                    f"Ensure 'spark.sql.execution.arrow.pyspark.enabled' is set to 'true'. "
-                    f"Error: {e}"
-                )
     except ImportError:
-        pass  # PySpark not installed
+        SparkDataFrame = None  # PySpark not installed
+
+    if SparkDataFrame is not None and isinstance(df, SparkDataFrame):
+        # Try to use toArrow() first (Spark 4.0+)
+        if hasattr(df, 'toArrow'):
+            try:
+                return df.toArrow()
+            except Exception:
+                # Fall back to toPandas if toArrow fails
+                pass
+        
+        # Fallback for Spark <4.0: convert via Pandas
+        try:
+            pandas_df = df.toPandas()
+            return pa.Table.from_pandas(pandas_df)
+        except ModuleNotFoundError as e:
+            missing_module = getattr(e, "name", None)
+            if missing_module == "distutils" or "No module named 'distutils'" in str(e):
+                raise RuntimeError(
+                    f"PySpark fallback conversion hit a missing 'distutils' dependency on Python 3.12+. "
+                    f"Please install setuptools to provide distutils compatibility:\n"
+                    f"  pip install setuptools\n"
+                    f"Or upgrade to PySpark 4.0+ which has native Arrow support."
+                )
+            raise
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to convert PySpark DataFrame to PyArrow. "
+                f"Ensure 'spark.sql.execution.arrow.pyspark.enabled' is set to 'true'. "
+                f"Error: {e}"
+            )
     
     # Pandas DataFrame
     try:

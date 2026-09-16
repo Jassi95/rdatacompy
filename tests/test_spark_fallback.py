@@ -75,3 +75,18 @@ def test_to_arrow_table_raises_helpful_error_after_toarrow_failure(monkeypatch):
 
     with pytest.raises(RuntimeError, match="PySpark fallback conversion hit a missing 'distutils' dependency"):
         _to_arrow_table(FakeSparkDataFrame())
+
+
+def test_to_arrow_table_propagates_other_module_not_found_errors(monkeypatch):
+    class FakeSparkDataFrame:
+        def toPandas(self):
+            raise ModuleNotFoundError("No module named 'not_distutils'")
+
+    fake_sql_module = type("FakeSQLModule", (), {"DataFrame": FakeSparkDataFrame})
+    fake_pyspark_module = type("FakePySparkModule", (), {"sql": fake_sql_module})
+
+    monkeypatch.setitem(sys.modules, "pyspark", fake_pyspark_module)
+    monkeypatch.setitem(sys.modules, "pyspark.sql", fake_sql_module)
+
+    with pytest.raises(ModuleNotFoundError, match="not_distutils"):
+        _to_arrow_table(FakeSparkDataFrame())
