@@ -1,4 +1,4 @@
-name: Build Python Wheels (3.11 & 3.12)
+name: Build Python Wheels (3.8-3.14)
 
 on:
   push:
@@ -22,18 +22,21 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'  # Just for running cibuildwheel
+          python-version: '3.14'  # Just for running cibuildwheel
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build wheels for Python 3.11 and 3.12
-        uses: pypa/cibuildwheel@v2.16.5
+      - name: Build wheels for Python 3.8-3.14
+        uses: pypa/cibuildwheel@v3.2.1
         env:
-          CIBW_BUILD: cp311-* cp312-*  # Build for both 3.11 and 3.12
+          CIBW_BUILD: cp38-* cp39-* cp310-* cp311-* cp312-* cp313-* cp314-*
           CIBW_SKIP: "*-musllinux_*"
           CIBW_ARCHS_LINUX: x86_64
           CIBW_ARCHS_WINDOWS: AMD64
+          CIBW_ENVIRONMENT: PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1
+          CIBW_BEFORE_ALL_LINUX: test "$(uname -m)" = x86_64 && export CARGO_HOME=/opt/rust/cargo RUSTUP_HOME=/opt/rust/rustup && curl -sSfL -o /tmp/rustup-init https://static.rust-lang.org/rustup/archive/1.28.2/x86_64-unknown-linux-gnu/rustup-init && echo '20a06e644b0d9bd2fbdbfd52d42540bdde820ea7df86e92e533c073da0cdd43c  /tmp/rustup-init' | sha256sum -c - && chmod +x /tmp/rustup-init && /tmp/rustup-init -y --no-modify-path --profile minimal --default-toolchain 1.98.1
+          CIBW_ENVIRONMENT_LINUX: CARGO_HOME=/opt/rust/cargo RUSTUP_HOME=/opt/rust/rustup PATH="/opt/rust/cargo/bin:$PATH" MATURIN_NO_INSTALL_RUST=1 PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1
 
       - name: Upload wheels as artifacts
         uses: actions/upload-artifact@v4

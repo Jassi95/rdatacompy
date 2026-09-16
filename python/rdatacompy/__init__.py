@@ -14,6 +14,21 @@ from ._rdatacompy import Compare as _RustCompare
 __version__ = "0.1.10"
 
 
+def _has_missing_distutils(exc: BaseException) -> bool:
+    seen = set()
+    current = exc
+
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, ModuleNotFoundError):
+            missing_module = getattr(current, "name", None)
+            if missing_module == "distutils" or "No module named 'distutils'" in str(current):
+                return True
+        current = current.__cause__ or current.__context__
+
+    return False
+
+
 def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:
     """
     Convert various dataframe types to PyArrow Table.
@@ -21,7 +36,7 @@ def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:
     Supports:
     - PyArrow Table
     - PyArrow RecordBatch
-    - PySpark DataFrame (3.5+ via toPandas, 4.0+ via toArrow)
+    - PySpark DataFrame (<4.0 via toPandas, 4.0+ via toArrow)
     - Pandas DataFrame
     - Polars DataFrame
     
@@ -48,36 +63,44 @@ def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:
     # PySpark DataFrame
     try:
         from pyspark.sql import DataFrame as SparkDataFrame
-        if isinstance(df, SparkDataFrame):
-            # Try to use toArrow() first (Spark 4.0+)
-            if hasattr(df, 'toArrow'):
-                try:
-                    return df.toArrow()
-                except Exception:
-                    # Fall back to toPandas if toArrow fails
-                    pass
-            
-            # Fallback for Spark 3.5: convert via Pandas
-            try:
-                pandas_df = df.toPandas()
-                return pa.Table.from_pandas(pandas_df)
-            except ModuleNotFoundError as e:
-                if 'distutils' in str(e):
-                    raise RuntimeError(
-                        f"PySpark 3.5 requires 'distutils' which is not available in Python 3.12+. "
-                        f"Please install setuptools to provide distutils compatibility:\n"
-                        f"  pip install setuptools\n"
-                        f"Or upgrade to PySpark 4.0+ which has native Arrow support."
-                    )
-                raise
-            except Exception as e:
-                raise RuntimeError(
-                    f"Failed to convert PySpark DataFrame to PyArrow. "
-                    f"Ensure 'spark.sql.execution.arrow.pyspark.enabled' is set to 'true'. "
-                    f"Error: {e}"
-                )
     except ImportError:
-        pass  # PySpark not installed
+        SparkDataFrame = None  # PySpark not installed
+
+    if SparkDataFrame is not None and isinstance(df, SparkDataFrame):
+        # Try to use toArrow() first (Spark 4.0+)
+        if hasattr(df, 'toArrow'):
+            try:
+                return df.toArrow()
+            except Exception:
+                # Fall back to toPandas if toArrow fails
+                pass
+        
+        # Fallback for Spark <4.0: convert via Pandas
+        try:
+            pandas_df = df.toPandas()
+            return pa.Table.from_pandas(pandas_df)
+        except ModuleNotFoundError as e:
+            if _has_missing_distutils(e):
+                raise RuntimeError(
+                    f"PySpark fallback conversion hit a missing 'distutils' dependency on this Python runtime. "
+                    f"Please install setuptools to provide distutils compatibility:\n"
+                    f"  pip install setuptools\n"
+                    f"Or upgrade to PySpark 4.0+ which has native Arrow support."
+                ) from e
+            raise
+        except Exception as e:
+            if _has_missing_distutils(e):
+                raise RuntimeError(
+                    f"PySpark fallback conversion hit a missing 'distutils' dependency on this Python runtime. "
+                    f"Please install setuptools to provide distutils compatibility:\n"
+                    f"  pip install setuptools\n"
+                    f"Or upgrade to PySpark 4.0+ which has native Arrow support."
+                ) from e
+            raise RuntimeError(
+                f"Failed to convert PySpark DataFrame to PyArrow via the toPandas() fallback. "
+                f"Ensure pandas and pyarrow are installed. "
+                f"Error: {e}"
+            ) from e
     
     # Pandas DataFrame
     try:
@@ -108,7 +131,7 @@ class Compare:
     
     Supports multiple dataframe types:
     - PyArrow Table/RecordBatch
-    - PySpark DataFrame (3.5+ via toPandas, 4.0+ via .toArrow())
+    - PySpark DataFrame (<4.0 via toPandas, 4.0+ via .toArrow())
     - Pandas DataFrame (converted via pa.Table.from_pandas())
     - Polars DataFrame (converted via .to_arrow())
     
@@ -242,4 +265,3 @@ class Compare:
 
 
 __all__ = ["Compare"]
-
