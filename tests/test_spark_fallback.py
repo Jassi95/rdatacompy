@@ -55,7 +55,7 @@ def test_to_arrow_table_raises_helpful_error_for_distutils(monkeypatch):
     monkeypatch.setitem(sys.modules, "pyspark", fake_pyspark_module)
     monkeypatch.setitem(sys.modules, "pyspark.sql", fake_sql_module)
 
-    with pytest.raises(RuntimeError, match="PySpark <4.0 may require 'distutils'"):
+    with pytest.raises(RuntimeError, match="PySpark fallback conversion hit a missing 'distutils' dependency"):
         _to_arrow_table(FakeSparkDataFrame())
 
 
@@ -73,5 +73,5 @@ def test_to_arrow_table_raises_helpful_error_after_toarrow_failure(monkeypatch):
     monkeypatch.setitem(sys.modules, "pyspark", fake_pyspark_module)
     monkeypatch.setitem(sys.modules, "pyspark.sql", fake_sql_module)
 
-    with pytest.raises(RuntimeError, match="PySpark <4.0 may require 'distutils'"):
+    with pytest.raises(RuntimeError, match="PySpark fallback conversion hit a missing 'distutils' dependency"):
         _to_arrow_table(FakeSparkDataFrame())

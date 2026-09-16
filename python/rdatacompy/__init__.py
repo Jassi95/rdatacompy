@@ -64,7 +64,7 @@ def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:
             except ModuleNotFoundError as e:
                 if 'distutils' in str(e):
                     raise RuntimeError(
-                        f"PySpark <4.0 may require 'distutils', which is not available in Python 3.12+. "
+                        f"PySpark fallback conversion hit a missing 'distutils' dependency on Python 3.12+. "
                         f"Please install setuptools to provide distutils compatibility:\n"
                         f"  pip install setuptools\n"
                         f"Or upgrade to PySpark 4.0+ which has native Arrow support."
