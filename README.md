@@ -186,7 +186,7 @@ df1 = spark.createDataFrame([(1, 100), (2, 200)], ['id', 'value'])
 df2 = spark.createDataFrame([(1, 100), (2, 201)], ['id', 'value'])
 
 # Directly compare Spark DataFrames (auto-converted to Arrow)
-# Works with Spark 3.5+ (via toPandas) and 4.0+ (via toArrow)
+# Works with Spark <4.0 (via toPandas) and 4.0+ (via toArrow)
 comp = Compare(df1, df2, join_columns=['id'])
 print(comp.report())
 ```
@@ -353,4 +353,3 @@ Apache-2.0
 ## Roadmap
 
 See [TODO.md](TODO.md) for planned features and improvements.
-

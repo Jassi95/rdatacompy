@@ -1,4 +1,4 @@
-name: Build Python Wheels (3.11 & 3.12)
+name: Build Python Wheels (3.11-3.14)
 
 on:
   push:
@@ -22,18 +22,19 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'  # Just for running cibuildwheel
+          python-version: '3.14'  # Just for running cibuildwheel
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build wheels for Python 3.11 and 3.12
-        uses: pypa/cibuildwheel@v2.16.5
+      - name: Build wheels for Python 3.11-3.14
+        uses: pypa/cibuildwheel@v3.2.1
         env:
-          CIBW_BUILD: cp311-* cp312-*  # Build for both 3.11 and 3.12
+          CIBW_BUILD: cp311-* cp312-* cp313-* cp314-*
           CIBW_SKIP: "*-musllinux_*"
           CIBW_ARCHS_LINUX: x86_64
           CIBW_ARCHS_WINDOWS: AMD64
+          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
 
       - name: Upload wheels as artifacts
         uses: actions/upload-artifact@v4

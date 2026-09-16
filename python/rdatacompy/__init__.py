@@ -21,7 +21,7 @@ def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:
     Supports:
     - PyArrow Table
     - PyArrow RecordBatch
-    - PySpark DataFrame (3.5+ via toPandas, 4.0+ via toArrow)
+    - PySpark DataFrame (<4.0 via toPandas, 4.0+ via toArrow)
     - Pandas DataFrame
     - Polars DataFrame
     
@@ -57,14 +57,14 @@ def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:
                     # Fall back to toPandas if toArrow fails
                     pass
             
-            # Fallback for Spark 3.5: convert via Pandas
+            # Fallback for Spark <4.0: convert via Pandas
             try:
                 pandas_df = df.toPandas()
                 return pa.Table.from_pandas(pandas_df)
             except ModuleNotFoundError as e:
                 if 'distutils' in str(e):
                     raise RuntimeError(
-                        f"PySpark 3.5 requires 'distutils' which is not available in Python 3.12+. "
+                        f"PySpark <4.0 may require 'distutils', which is not available in Python 3.12+. "
                         f"Please install setuptools to provide distutils compatibility:\n"
                         f"  pip install setuptools\n"
                         f"Or upgrade to PySpark 4.0+ which has native Arrow support."
@@ -108,7 +108,7 @@ class Compare:
     
     Supports multiple dataframe types:
     - PyArrow Table/RecordBatch
-    - PySpark DataFrame (3.5+ via toPandas, 4.0+ via .toArrow())
+    - PySpark DataFrame (<4.0 via toPandas, 4.0+ via .toArrow())
     - Pandas DataFrame (converted via pa.Table.from_pandas())
     - Polars DataFrame (converted via .to_arrow())
     
@@ -242,4 +242,3 @@ class Compare:
 
 
 __all__ = ["Compare"]
-
