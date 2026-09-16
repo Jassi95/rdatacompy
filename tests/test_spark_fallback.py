@@ -57,3 +57,21 @@ def test_to_arrow_table_raises_helpful_error_for_distutils(monkeypatch):
 
     with pytest.raises(RuntimeError, match="PySpark <4.0 may require 'distutils'"):
         _to_arrow_table(FakeSparkDataFrame())
+
+
+def test_to_arrow_table_raises_helpful_error_after_toarrow_failure(monkeypatch):
+    class FakeSparkDataFrame:
+        def toArrow(self):
+            raise RuntimeError("toArrow unavailable")
+
+        def toPandas(self):
+            raise ModuleNotFoundError("No module named 'distutils'")
+
+    fake_sql_module = type("FakeSQLModule", (), {"DataFrame": FakeSparkDataFrame})
+    fake_pyspark_module = type("FakePySparkModule", (), {"sql": fake_sql_module})
+
+    monkeypatch.setitem(sys.modules, "pyspark", fake_pyspark_module)
+    monkeypatch.setitem(sys.modules, "pyspark.sql", fake_sql_module)
+
+    with pytest.raises(RuntimeError, match="PySpark <4.0 may require 'distutils'"):
+        _to_arrow_table(FakeSparkDataFrame())
