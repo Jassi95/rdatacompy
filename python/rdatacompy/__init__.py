@@ -77,8 +77,7 @@ def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:
         except Exception as e:
             raise RuntimeError(
                 f"Failed to convert PySpark DataFrame to PyArrow via the toPandas() fallback. "
-                f"Ensure pandas and pyarrow are installed, and if you're using Spark <4.0, "
-                f"set 'spark.sql.execution.arrow.pyspark.enabled' to 'true'. "
+                f"Ensure pandas and pyarrow are installed. "
                 f"Error: {e}"
             )
     
