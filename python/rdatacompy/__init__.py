@@ -69,11 +69,7 @@ def _to_arrow_table(df, name: str = "dataframe") -> pa.Table:
     if SparkDataFrame is not None and isinstance(df, SparkDataFrame):
         # Try to use toArrow() first (Spark 4.0+)
         if hasattr(df, 'toArrow'):
-            try:
-                return df.toArrow()
-            except Exception:
-                # Fall back to toPandas if toArrow fails
-                pass
+            return df.toArrow()
         
         # Fallback for Spark <4.0: convert via Pandas
         try:
