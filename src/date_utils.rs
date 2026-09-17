@@ -28,7 +28,7 @@ mod tests {
         assert_eq!(days_to_date(0), (1970, 1, 1));
         
         // Test some known dates
-        assert_eq!(days_to_date(19898), (2024, 7, 9));
+        assert_eq!(days_to_date(19898), (2024, 6, 24));
         assert_eq!(days_to_date(365), (1971, 1, 1));
         assert_eq!(days_to_date(-1), (1969, 12, 31));
     }
