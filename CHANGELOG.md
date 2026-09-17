@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-09-17
+
+### Fixed
+- Compare every record batch produced by PyArrow instead of silently discarding all but the first batch.
+- Keep Python package, runtime, and Rust crate versions aligned.
+
 ## [0.1.10] - 2025-10-28
 
 ### Fixed

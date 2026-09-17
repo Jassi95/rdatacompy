@@ -11,7 +11,7 @@ from typing import Union, List, Optional
 # Import the Rust implementation
 from ._rdatacompy import Compare as _RustCompare
 
-__version__ = "0.1.10"
+__version__ = "1.1.3"
 
 
 def _has_missing_distutils(exc: BaseException) -> bool:

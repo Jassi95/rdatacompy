@@ -1,5 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::types::PyList;
+use arrow::compute::concat_batches;
 use arrow::pyarrow::PyArrowType;
 use arrow::record_batch::RecordBatch;
 
@@ -38,22 +39,17 @@ fn pyarrow_to_record_batch(py: Python, obj: &Bound<'_, PyAny>) -> PyResult<Recor
             ));
         }
         
-        // If single batch, just use it
-        if batches_list.len() == 1 {
-            let batch = batches_list.get_item(0)?;
-            let record_batch = batch.extract::<PyArrowType<RecordBatch>>()?;
-            return Ok(record_batch.0);
-        }
-        
-        // Multiple batches - need to concatenate
-        // For now, let's convert to a single batch using PyArrow's concat_tables
-        let concat = pyarrow.getattr("concat_tables")?;
-        let combined = concat.call1(([obj],))?;
-        let combined_batches = combined.call_method0("to_batches")?;
-        let combined_list = combined_batches.downcast::<PyList>()?;
-        let first_batch = combined_list.get_item(0)?;
-        let record_batch = first_batch.extract::<PyArrowType<RecordBatch>>()?;
-        return Ok(record_batch.0);
+        let record_batches = batches_list
+            .iter()
+            .map(|batch| {
+                batch
+                    .extract::<PyArrowType<RecordBatch>>()
+                    .map(|batch| batch.0)
+            })
+            .collect::<PyResult<Vec<_>>>()?;
+
+        return concat_batches(&record_batches[0].schema(), &record_batches)
+            .map_err(|error| PyErr::new::<pyo3::exceptions::PyValueError, _>(error.to_string()));
     }
     
     Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
